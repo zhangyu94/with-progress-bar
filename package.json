@@ -1,7 +1,7 @@
 {
   "name": "with-progress-bar",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "packageManager": "pnpm@10.17.1",
   "description": "A lightweight utility that wraps async functions with NProgress to automatically show a progress bar during execution.",
   "author": "Yu Zhang",
