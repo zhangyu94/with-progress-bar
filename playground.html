@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>with-progress-bar Developer Playground</title>
+  <style>
+    body {
+      font-family: system-ui;
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .description {
+      color: #666;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .demo-section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+    }
+
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      margin: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    .result {
+      margin: 10px 0;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    .result.success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .result.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .result.info {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+  </style>
+  <!-- Include bundled CSS from the package -->
+  <link rel="stylesheet" href="./dist/index.css">
+</head>
+
+<body>
+  <h1>🚀 with-progress-bar Developer Playground</h1>
+  <p class="description">
+    This playground tests the <strong>actual built package</strong> from <code>./dist/index.js</code>.
+    It uses import maps to resolve NProgress from unpkg, testing the real external dependency behavior.
+  </p>
+
+  <div class="demo-section">
+    <h2>🎯 Live Demo</h2>
+    <p><strong>Testing the actual built package:</strong> Click the buttons below to verify the real implementation
+      works correctly:</p>
+
+     <button onclick="demoSuccess()">✅ Success Demo</button>
+     <button onclick="demoError()">❌ Error Demo</button>
+     <button onclick="demoMultiple()">🔄 Multiple Calls</button>
+     <button onclick="demoSlow()">🐌 Slow Operation</button>
+     <button onclick="demoSync()">⚡ Sync Function Test</button>
+
+    <div id="result"></div>
+  </div>
+
+
+  <!-- Load NProgress from CDN -->
+  <script src="https://unpkg.com/nprogress@0.2.0/nprogress.js"></script>
+
+  <!-- Create a simple ES module that exports NProgress -->
+  <script type="module" id="nprogress-module">
+    // Export NProgress as default for the built package to import
+    window.NProgressDefault = NProgress;
+  </script>
+
+  <!-- Import map to redirect nprogress to our inline module -->
+  <script type="importmap">
+  {
+    "imports": {
+      "nprogress": "data:text/javascript,export default window.NProgressDefault"
+    }
+  }
+  </script>
+
+  <script type="module">
+    // Wait for NProgress to be available
+    await new Promise(resolve => {
+      if (window.NProgressDefault) {
+        resolve();
+      } else {
+        const checkInterval = setInterval(() => {
+          if (window.NProgressDefault) {
+            clearInterval(checkInterval);
+            resolve();
+          }
+        }, 10);
+      }
+    });
+
+    // Import the actual built package - this tests the real implementation!
+    import withProgressBar from './dist/index.js'
+
+    // Make it available globally for the demo functions
+    window.withProgressBar = withProgressBar
+
+    const fetchData = withProgressBar(async (url, delay = 1000) => {
+      await new Promise(resolve => setTimeout(resolve, delay))
+      return { data: `Fetched from ${url}`, timestamp: new Date().toISOString() }
+    })
+
+    const riskyOperation = withProgressBar(async (shouldFail = false) => {
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      if (shouldFail) {
+        throw new Error('Simulated error occurred!')
+      }
+      return { success: true, message: 'Operation completed successfully!' }
+    })
+
+    const slowOperation = withProgressBar(async () => {
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      return { message: 'Slow operation completed!' }
+    })
+
+    // Make demo functions globally available
+    window.fetchData = fetchData
+    window.riskyOperation = riskyOperation
+    window.slowOperation = slowOperation
+
+    // Initialize the playground
+    document.getElementById('result').innerHTML = `
+      <div class="result info">
+        🎮 Playground ready! Testing actual built package from ./dist/index.js<br>
+        Click any button above to see the progress bar in action.
+      </div>
+    `
+  </script>
+
+  <script>
+    // Demo handlers
+    async function demoSuccess() {
+      const resultDiv = document.getElementById('result')
+      resultDiv.innerHTML = '<div class="result info">🔄 Running success demo...</div>'
+
+      try {
+        const result = await window.fetchData('https://api.example.com/success')
+        resultDiv.innerHTML = `
+          <div class="result success">
+            ✅ Success!<br>
+            Data: ${JSON.stringify(result, null, 2)}
+          </div>
+        `
+      } catch (error) {
+        resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`
+      }
+    }
+
+    async function demoError() {
+      const resultDiv = document.getElementById('result')
+      resultDiv.innerHTML = '<div class="result info">🔄 Running error demo...</div>'
+
+      try {
+        const result = await window.riskyOperation(true)
+        resultDiv.innerHTML = `<div class="result success">✅ ${result.message}</div>`
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="result error">
+            ❌ Error caught!<br>
+            Message: ${error.message}<br>
+            <small>Notice: Progress bar was automatically cleaned up!</small>
+          </div>
+        `
+      }
+    }
+
+    async function demoMultiple() {
+      const resultDiv = document.getElementById('result')
+      resultDiv.innerHTML = '<div class="result info">🔄 Running multiple calls demo...</div>'
+
+      try {
+        const results = await Promise.all([
+          window.fetchData('https://api.example.com/data1', 800),
+          window.fetchData('https://api.example.com/data2', 1200),
+          window.fetchData('https://api.example.com/data3', 600)
+        ])
+
+        resultDiv.innerHTML = `
+          <div class="result success">
+            ✅ Multiple calls completed!<br>
+            Results: ${results.length} items fetched<br>
+            <small>Each call shows its own progress bar</small>
+          </div>
+        `
+      } catch (error) {
+        resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`
+      }
+    }
+
+     async function demoSlow() {
+       const resultDiv = document.getElementById('result')
+       resultDiv.innerHTML = '<div class="result info">🔄 Running slow operation (3 seconds)...</div>'
+
+       try {
+         const result = await window.slowOperation()
+         resultDiv.innerHTML = `
+           <div class="result success">
+             ✅ ${result.message}<br>
+             <small>Progress bar showed for the entire duration!</small>
+           </div>
+         `
+       } catch (error) {
+         resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`
+       }
+     }
+
+     async function demoSync() {
+       const resultDiv = document.getElementById('result')
+       resultDiv.innerHTML = '<div class="result info">🔄 Testing slow sync function...</div>'
+
+       try {
+         // Create a moderately slow sync function that does heavy computation
+         const slowSyncFunction = (n) => {
+           let result = 0
+           for (let i = 0; i < n; i++) {
+             // Simulate heavy computation
+             for (let j = 0; j < 8000000; j++) {
+               result += Math.sqrt(i * j)
+             }
+           }
+           return result
+         }
+         
+         const wrappedSync = window.withProgressBar(slowSyncFunction)
+         const result = await wrappedSync(400)
+         
+         resultDiv.innerHTML = `
+           <div class="result success">
+             ✅ Sync function completed!<br>
+             Result: ${Math.round(result)}<br>
+             <small>Note: Progress bar only moved once because sync functions block the main thread</small>
+           </div>
+         `
+       } catch (error) {
+         resultDiv.innerHTML = `
+           <div class="result error">
+             ❌ Sync function failed!<br>
+             Error: ${error.message}<br>
+             <small>Current implementation only supports async functions</small>
+           </div>
+         `
+       }
+     }
+  </script>
+</body>
+
+</html>
