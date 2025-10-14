@@ -13,7 +13,7 @@ export default defineConfig({
         {
           src: 'node_modules/nprogress/nprogress.css',
           dest: 'dist',
-          rename: 'index.css',
+          rename: 'style.css',
         },
       ],
     }),
